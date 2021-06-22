@@ -1,0 +1,7 @@
+<launch>
+  <!-- DVS simulator using a sequence of images -->
+  <node name="" pkg="crear_rosbag" type="crear_rosbag.py" output="screen">
+    
+  </node>
+  
+</launch>
