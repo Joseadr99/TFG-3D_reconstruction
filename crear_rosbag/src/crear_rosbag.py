@@ -16,11 +16,6 @@ import time
 import numpy as np
 from os.path import join
 
-#include "std_msgs/String.h"
-#include <dvs_msgs/Event.h>
-#include <dvs_msgs/EventArray.h>
-#from std_msgs.msg import String
-
 from dvs_msgs.msg import Event, EventArray
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import CameraInfo
@@ -80,7 +75,7 @@ def parse_dataset(cam_dir,dataset_dir):
     tiempos=[]
     posiciones=[]
     orientaciones=[]
-    with open('%s/svo_prueba_traslacion1.txt' % dataset_dir) as fichero:
+    with open('%s/svo_posicion.txt' % dataset_dir) as fichero:
        linea = fichero.readline() 
        contador = 1
        while linea:
@@ -114,7 +109,6 @@ def parse_dataset(cam_dir,dataset_dir):
              contador = 0
           linea = fichero.readline()
           contador += 1
-    #print("Tamano de posiciones= ",len(posiciones))
     
     ###############################
     ###VIENE DE CAMERA_ATAN.YAML###
@@ -131,9 +125,6 @@ def parse_dataset(cam_dir,dataset_dir):
     
     return tiempos, posiciones, orientaciones, cam
 
-#t,pos,ori,cam = parse_dataset('.','.')
-
-#print(t[0], "t1= ",t[1], " pos = ", pos[0][0], ", ",pos[0][1], ", ",pos[0][2])
 
 def make_event(x, y, ts, pol):
     e = Event()
@@ -150,26 +141,18 @@ def parse_events(dataset_dir,timestamp,last_pub,limite):
         contador = 1
         print("Empieza a leer eventos")
         while linea:
-          #print(contador)
           if contador<limite:  
              contador += 1
              if(contador==limite-1):
                 print("Se ha saltado la cabecera = ", limite)
           else:
-             #print("entrooooo")
              time = float(linea.split(' ')[0])
-             #if (contador%10000==1):
-                #print("Aqui es = ",rospy.Time.from_sec(time), "con timestamp ",timestamp, " y last pub = ",last_pub, " hasta ", timestamp)
              if( rospy.Time.from_sec(time)<timestamp and rospy.Time.from_sec(time) > last_pub ):
-                #print("Aqui es = ",rospy.Time.from_sec(time), "con timestamp ",timestamp, " y ",last_pub)
                 x = int(linea.split(' ')[1])
                 y = int(linea.split(' ')[2])
                 polarity = bool(linea.split(' ')[2])
                 eventos.append(make_event(x, y, time, polarity))
                 contador += 1
-                if contador%10000==1:
-                   
-                   print("contador = ",contador)
              elif(rospy.Time.from_sec(time) > timestamp):
                 print("Tamano de eventos es",len(eventos))
                 limite = contador
@@ -178,7 +161,6 @@ def parse_events(dataset_dir,timestamp,last_pub,limite):
                 contador += 1
           
           linea = fichero.readline()
-          #print(linea.split(' ')[0])
           
              
     return eventos, limite
@@ -186,14 +168,7 @@ def parse_events(dataset_dir,timestamp,last_pub,limite):
         
         
 if __name__ == '__main__':
-    """
-    package_dir = rospack.get_path('dvs_simulator_py')
 
-    # Load simulator parameters
-    dataset_name = rospy.get_param('dataset_name', '')
-    # Parse dataset
-    dataset_dir = os.path.join(package_dir, 'datasets', 'full_datasets', dataset_name, 'data')
-    """
     rospack = rospkg.RosPack()
     package_dir = rospack.get_path('crear_rosbag')
     
@@ -202,22 +177,14 @@ if __name__ == '__main__':
     ns = rospy.get_param('ns', '/dvs')
     
     camera_info_msg = make_camera_msg(cam)
-    #depthmap_topic = '{}/depthmap'.format(ns)
-    #image_topic = '{}/image_raw'.format(ns)
     pose_topic = '/optitrack/davis'
     camera_info_topic = '{}/camera_info'.format(ns)
     event_topic = '{}/events'.format(ns)
     
-    # Prepare publishers
-    #bridge = CvBridge()
-    #pose_pub = rospy.Publisher(pose_topic, PoseStamped, queue_size=0)
-    #camera_info_pub = rospy.Publisher(camera_info_topic, CameraInfo, queue_size=0)
-    #event_pub = rospy.Publisher(event_topic, EventArray, queue_size=0)
-    
     init_time = times[0]
     
     # Debe estar en el mismo directorio
-    bag = rosbag.Bag(join(package_dir, '{}-{}.bag'.format("prueba_traslacion1", time.strftime("%Y%m%d-%H%M%S"))), 'w')
+    bag = rosbag.Bag(join(package_dir, '{}-{}.bag'.format("prueba_1", time.strftime("%Y%m%d-%H%M%S"))), 'w')
     
     bag.write(topic=pose_topic, msg=make_pose_msg(positions[0], orientations[0], init_time), t=init_time)
     
@@ -225,6 +192,7 @@ if __name__ == '__main__':
     events = []
     limite = 7
     delta_event = rospy.Duration(1.0 / 300)
+
     for frame_id in range(1, len(times)):
         print("Va por=", frame_id, "(", times[frame_id],") de ",len(times))
         timestamp = times[frame_id]
@@ -233,14 +201,10 @@ if __name__ == '__main__':
         
         bag.write(topic=camera_info_topic, msg=camera_info_msg, t=timestamp)
         
-        print("llego aqui1")
-    # # compute events for this frame
-    #     img = dataset_utils.safe_log(img)
-    #     current_events = sim.update(timestamp.to_sec(), img)
-    #     events += current_events
-    
+        #print("llego aqui1")
+
         events, limite = parse_events(package_dir,timestamp,last_pub_event_timestamp,limite)
-        print("llego aqui2")
+        #print("llego aqui2")
     # publish events
         
         if timestamp - last_pub_event_timestamp > delta_event:
@@ -250,7 +214,6 @@ if __name__ == '__main__':
             event_array.width = cam[0]
             event_array.height = cam[1]
             event_array.events = events
-            #event_pub.publish(event_array)
 
             bag.write(topic=event_topic, msg=event_array, t=timestamp)
             
@@ -259,20 +222,4 @@ if __name__ == '__main__':
     bag.close()
     rospy.loginfo('Finished writing rosbag')
     
-"""
-def talker():
-    pub = rospy.Publisher('chatter', String, queue_size=10)
-    rospy.init_node('talker', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
-    while not rospy.is_shutdown():
-        hello_str = "hello world %s" % rospy.get_time()
-        rospy.loginfo(hello_str)
-        pub.publish(hello_str)
-        rate.sleep()
 
-if __name__ == '__main__':
-    try:
-        talker()
-    except rospy.ROSInterruptException:
-        pass
-"""
